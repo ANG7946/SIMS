@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教育測驗統計方法選擇器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.5;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        h3 {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .info-box {
+            background-color: #e6f3ff;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+        }
+        .info-text {
+            font-size: 14px;
+            color: #0056b3;
+        }
+        .section {
+            margin-bottom: 16px;
+        }
+        .button-group {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background-color: #e0e0e0;
+        }
+        .btn.selected {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+        }
+        .submit-btn {
+            display: block;
+            width: 200px;
+            margin: 24px auto;
+            padding: 12px 24px;
+            background-color: #16a34a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .submit-btn:hover {
+            background-color: #15803d;
+        }
+        .submit-btn:disabled {
+            background-color: #d1d5db;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+        .result-section {
+            margin-top: 24px;
+            display: none;
+        }
+        .result-header {
+            background-color: #ecfdf5;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+        }
+        .result-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #166534;
+        }
+        .result-subtitle {
+            font-size: 14px;
+            color: #15803d;
+        }
+        .result-card {
+            background-color: white;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .card-title.blue {
+            color: #1d4ed8;
+        }
+        .card-title.purple {
+            color: #7e22ce;
+        }
+        .card-title.gray {
+            color: #4b5563;
+        }
+        .special-note {
+            background-color: #fff7ed;
+            border: 1px solid #ffedd5;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .special-title {
+            color: #c2410c;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .posthoc-section {
+            background-color: #eef2ff;
+            border: 1px solid #e0e7ff;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .posthoc-title {
+            color: #4338ca;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        pre {
+            white-space: pre-wrap;
+            font-size: 14px;
+            font-family: inherit;
+            margin: 0;
+        }
+        ul {
+            padding-left: 20px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+        @media (min-width: 768px) {
+            .button-group {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .button-group.two-col {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .result-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>教育測驗統計方法選擇器</h1>
+        
+        <div id="selection-section">
+            <div class="info-box">
+                <p class="info-text">請根據您的研究情境選擇適當的選項，系統將為您推薦合適的統計分析方法。</p>
+            </div>
+            
+            <!-- 受試者數量選擇 -->
+            <div class="section">
+                <h2>受試者數量</h2>
+                <div class="button-group">
+                    <button class="btn" data-group="subject" data-value="small">小樣本 (n < 20)</button>
+                    <button class="btn" data-group="subject" data-value="medium">中等樣本 (20 ≤ n < 100)</button>
+                    <button class="btn" data-group="subject" data-value="large">大樣本 (n ≥ 100)</button>
+                </div>
+            </div>
+            
+            <!-- 比較組數選擇 -->
+            <div class="section">
+                <h2>比較組數</h2>
+                <div class="button-group two-col">
+                    <button class="btn" data-group="group" data-value="two">兩組比較</button>
+                    <button class="btn" data-group="group" data-value="multiple">多組比較 (三組或以上)</button>
+                </div>
+            </div>
+            
+            <!-- 前後測選擇 -->
+            <div class="section">
+                <h2>有無前後測</h2>
+                <div class="button-group two-col">
+                    <button class="btn" data-group="testing" data-value="none">僅有後測</button>
+                    <button class="btn" data-group="testing" data-value="prepost">有前測和後測</button>
+                </div>
+            </div>
+            
+            <!-- 資料分佈情況 -->
+            <div class="section">
+                <h2>資料分佈情況</h2>
+                <div class="button-group">
+                    <button class="btn" data-group="distribution" data-value="normal">資料呈常態分佈</button>
+                    <button class="btn" data-group="distribution" data-value="nonnormal">資料不呈常態分佈</button>
+                    <button class="btn" data-group="distribution" data-value="unknown">資料分佈未知</button>
+                </div>
+            </div>
+            
+            <!-- 變異數同質性 -->
+            <div class="section">
+                <h2>變異數同質性</h2>
+                <div class="button-group">
+                    <button class="btn" data-group="variance" data-value="equal">各組變異數相等</button>
+                    <button class="btn" data-group="variance" data-value="unequal">各組變異數不等</button>
+                    <button class="btn" data-group="variance" data-value="unknown">變異數同質性未知</button>
+                </div>
+            </div>
+            
+            <!-- 提交按鈕 -->
+            <button id="submit-btn" class="submit-btn" disabled>獲取推薦統計方法</button>
+        </div>
+        
+        <!-- 結果顯示區域 -->
+        <div id="result-section" class="result-section">
+            <div class="result-header">
+                <h2 class="result-title">根據您的選擇，我們推薦以下統計方法</h2>
+                <p class="result-subtitle" id="selection-summary"></p>
+            </div>
+            
+            <!-- 推薦方法 -->
+            <div class="result-grid">
+                <div class="result-card">
+                    <h3 class="card-title blue">統計方法</h3>
+                    <p id="parametric-method"></p>
+                </div>
+                <div class="result-card">
+                    <h3 class="card-title purple">對應無母數統計方法</h3>
+                    <p id="nonparametric-method"></p>
+                </div>
+            </div>
+            
+            <div class="result-card">
+                <h3 class="card-title gray">方法說明</h3>
+                <p id="method-description"></p>
+            </div>
+            
+            <div class="result-card">
+                <h3 class="card-title gray">樣本數考量</h3>
+                <p id="sample-advice"></p>
+            </div>
+            
+            <div class="result-card">
+                <h3 class="card-title gray">參數方法假設條件</h3>
+                <ul id="assumptions-list"></ul>
+            </div>
+            
+            <div class="result-card">
+                <h3 class="card-title gray">適用情境舉例</h3>
+                <p id="usage-example"></p>
+            </div>
+            
+            <div id="special-consideration" class="special-note" style="display: none;">
+                <h3 class="special-title">特殊考量</h3>
+                <p id="special-text"></p>
+            </div>
+            
+            <div id="posthoc-section" class="posthoc-section" style="display: none;">
+                <h3 class="posthoc-title">建議事後比較方法</h3>
+                <pre id="posthoc-methods"></pre>
+            </div>
+            
+            <!-- 重新選擇按鈕 -->
+            <button id="reset-btn" class="submit-btn">重新選擇</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 定義變數儲存使用者選擇
+            let selections = {
+                subject: '',
+                group: '',
+                testing: '',
+                distribution: '',
+                variance: ''
+            };
+            
+            // 按鈕選擇邏輯
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const group = this.getAttribute('data-group');
+                    const value = this.getAttribute('data-value');
+                    
+                    // 移除同組其他按鈕的選中狀態
+                    document.querySelectorAll(`.btn[data-group="${group}"]`).forEach(btn => {
+                        btn.classList.remove('selected');
+                    });
+                    
+                    // 設置當前按鈕為選中狀態
+                    this.classList.add('selected');
+                    
+                    // 更新選擇
+                    selections[group] = value;
+                    
+                    // 更新提交按鈕狀態
+                    updateSubmitButton();
+                });
+            });
+            
+            // 更新提交按鈕狀態
+            function updateSubmitButton() {
+                const submitBtn = document.getElementById('submit-btn');
+                const allSelected = Object.values(selections).every(val => val !== '');
+                submitBtn.disabled = !allSelected;
+            }
+            
+            // 提交按鈕事件
+            document.getElementById('submit-btn').addEventListener('click', function() {
+                const recommendation = getRecommendedMethod();
+                displayResults(recommendation);
+                
+                // 隱藏選擇區域，顯示結果區域
+                document.getElementById('selection-section').style.display = 'none';
+                document.getElementById('result-section').style.display = 'block';
+            });
+            
+            // 重設按鈕事件
+            document.getElementById('reset-btn').addEventListener('click', function() {
+                // 清除所有選擇
+                buttons.forEach(btn => btn.classList.remove('selected'));
+                Object.keys(selections).forEach(key => selections[key] = '');
+                
+                // 顯示選擇區域，隱藏結果區域
+                document.getElementById('selection-section').style.display = 'block';
+                document.getElementById('result-section').style.display = 'none';
+                
+                // 禁用提交按鈕
+                updateSubmitButton();
+            });
+            
+            // 選擇項目的文字映射
+            const optionLabels = {
+                subject: {
+                    small: "小樣本 (n < 20)",
+                    medium: "中等樣本 (20 ≤ n < 100)",
+                    large: "大樣本 (n ≥ 100)"
+                },
+                group: {
+                    two: "兩組比較",
+                    multiple: "多組比較 (三組或以上)"
+                },
+                testing: {
+                    none: "僅有後測",
+                    prepost: "有前測和後測"
+                },
+                distribution: {
+                    normal: "資料呈常態分佈",
+                    nonnormal: "資料不呈常態分佈",
+                    unknown: "資料分佈未知"
+                },
+                variance: {
+                    equal: "各組變異數相等",
+                    unequal: "各組變異數不等",
+                    unknown: "變異數同質性未知"
+                }
+            };
+            
+            // 方法推薦邏輯
+            function getRecommendedMethod() {
+                const { subject, group, testing, distribution, variance } = selections;
+                
+                // 基於使用者選擇提供建議
+                let parametricMethod = "";
+                let nonParametricMethod = "";
+                let description = "";
+                let assumptions = [];
+                let whenToUse = "";
+                let specialConsideration = "";
+                let postHocMethod = "";
+                
+                // 考慮資料分佈和變異數同質性
+                if (distribution === "nonnormal" || 
+                    (subject === "small" && distribution === "unknown")) {
+                    specialConsideration += "由於資料不呈常態分佈或樣本量小且分佈未知，建議優先考慮無母數方法。";
+                }
+                
+                if (variance === "unequal") {
+                    specialConsideration += " 各組變異數不相等，若使用參數方法，應選擇調整後的檢定（如Welch's t-test）或在解釋結果時更加謹慎。";
+                }
+                
+                // 僅有後測的情況
+                if (testing === "none") {
+                    // 兩組比較
+                    if (group === "two") {
+                        parametricMethod = "獨立樣本 t 檢定 (Independent Samples t-test)";
+                        nonParametricMethod = "曼-惠特尼 U 檢定 (Mann-Whitney U Test)";
+                        description = "比較兩個獨立群體在某個連續變數上的平均數差異。";
+                        assumptions = [
+                            "觀察值獨立性",
+                            "依變數為連續變數",
+                            "依變數在各組中呈常態分佈",
+                            "各組具有同質性變異數"
+                        ];
+                        whenToUse = "比較兩個班級或兩種教學方法在學習成效上的差異。";
+                    } 
+                    // 多組比較
+                    else if (group === "multiple") {
+                        parametricMethod = "單因子變異數分析 (One-way ANOVA)";
+                        nonParametricMethod = "克魯斯卡爾-瓦利斯檢定 (Kruskal-Wallis H Test)";
+                        description = "比較三個或更多獨立群體在某個連續變數上的平均數差異。";
+                        assumptions = [
+                            "觀察值獨立性",
+                            "依變數為連續變數",
+                            "依變數在各組中呈常態分佈",
+                            "各組具有同質性變異數"
+                        ];
+                        whenToUse = "比較多種不同教學方法或課程設計在學習成效上的差異。";
+                        
+                        // 設定事後比較方法
+                        if (variance === "equal" && (distribution === "normal" || subject === "large")) {
+                            postHocMethod = "Tukey HSD：適用於樣本數相等且變異數同質的情況，控制整體型一錯誤率。\n" +
+                                           "Bonferroni：廣泛適用的保守方法，適合進行少量預先計劃的比較。\n" +
+                                           "Scheffé：較為保守但可處理複雜比較，適合事後（非計劃）比較。\n" +
+                                           "LSD (最小顯著差異法)：較為寬鬆的方法，不調整整體型一錯誤率，適合事先計劃的少量比較或探索性研究。\n" +
+                                           "Duncan多範圍檢定：比Tukey檢定更寬鬆，具有較高的統計檢定力，但型一錯誤率較高，適合探索性研究。";
+                        } else if (variance === "unequal") {
+                            postHocMethod = "Games-Howell：適用於變異數不同質的情況，是Tukey檢定的修正版本。\n" +
+                                           "Dunnett's T3：適用於變異數不同質且樣本量小的情況。";
+                        } else {
+                            postHocMethod = "Tukey HSD：常用的事後比較方法，適合樣本數相等的情況。\n" +
+                                           "Bonferroni：較為保守的方法，可用於各種情況，特別是樣本量小時。\n" +
+                                           "LSD (最小顯著差異法)：最基本的多重比較方法，有較高的統計檢定力但也有較高的型一錯誤率。\n" +
+                                           "Duncan多範圍檢定：以範圍為基礎的檢定方法，適合在探索研究中尋找潛在差異。";
+                        }
+                    }
+                } 
+                // 有前後測的情況
+                else if (testing === "prepost") {
+                    // 兩組比較
+                    if (group === "two") {
+                        parametricMethod = "單因子共變數分析 (ANCOVA)";
+                        nonParametricMethod = "排序共變數分析 (Rank ANCOVA) 或前後測差異分數的曼-惠特尼 U 檢定 (Mann-Whitney U Test on difference scores)";
+                        description = "比較兩組在控制前測分數後的後測平均數差異。";
+                        assumptions = [
+                            "觀察值獨立性",
+                            "依變數和共變數為連續變數",
+                            "依變數在各組中呈常態分佈",
+                            "迴歸係數同質性",
+                            "共變數與處理因子間的獨立性",
+                            "共變數測量無誤差"
+                        ];
+                        whenToUse = "比較兩組在控制學生起點能力的情況下，教學介入對學習成效的影響。";
+                    } 
+                    // 多組比較
+                    else if (group === "multiple") {
+                        parametricMethod = "單因子共變數分析 (ANCOVA)";
+                        nonParametricMethod = "排序共變數分析 (Rank ANCOVA) 或前後測差異分數的克魯斯卡爾-瓦利斯檢定 (Kruskal-Wallis H Test on difference scores)";
+                        description = "比較多組在控制前測分數後的後測平均數差異。";
+                        assumptions = [
+                            "觀察值獨立性",
+                            "依變數和共變數為連續變數",
+                            "依變數在各組中呈常態分佈",
+                            "迴歸係數同質性",
+                            "共變數與處理因子間的獨立性",
+                            "共變數測量無誤差"
+                        ];
+                        whenToUse = "比較多種教學方法在控制學生起點能力的情況下對學習成效的影響。";
+                        
+                        // 設定事後比較方法
+                        if (variance === "equal" && (distribution === "normal" || subject === "large")) {
+                            postHocMethod = "調整後的Tukey HSD：考慮共變量影響後的多重比較。\n" +
+                                           "Bonferroni調整：對調整後的成對比較進行多重比較校正。\n" +
+                                           "Sidak校正：比Bonferroni稍微寬鬆，但仍能控制整體型一錯誤率。\n" +
+                                           "LSD (最小顯著差異法)：在控制共變量後進行的較為寬鬆的比較，適合探索性研究。\n" +
+                                           "Duncan多範圍檢定：在ANCOVA中也可使用，具有較高的統計檢定力，適合發現潛在的組間差異。";
+                        } else if (variance === "unequal") {
+                            postHocMethod = "調整後的Games-Howell：適用於變異數不同質的共變數分析。\n" +
+                                           "加權最小平方法(WLS)：可處理變異數不同質的情況。";
+                        } else {
+                            postHocMethod = "調整後的Bonferroni：廣泛適用於各種ANCOVA情況的多重比較方法。\n" +
+                                           "使用估計邊際平均數(EMM)進行的Tukey檢定：適合大多數教育研究情境。\n" +
+                                           "調整後的LSD：在控制共變量後的基本配對比較方法，較易發現差異但型一錯誤率較高。\n" +
+                                           "調整後的Duncan檢定：在ANCOVA中控制共變量後應用的範圍檢定，適合探索性研究。";
+                        }
+                    }
+                }
+                
+                // 樣本大小的建議
+                let sampleSizeAdvice = "";
+                if (subject === "small") {
+                    sampleSizeAdvice = "小樣本情況下，建議優先考慮使用無母數方法，除非您能確認資料符合參數方法的假設條件。";
+                } else if (subject === "medium") {
+                    sampleSizeAdvice = "中等樣本量，如果資料大致符合常態分佈，可以使用參數方法；若分佈嚴重偏斜或有極端值，則建議使用無母數方法。";
+                } else if (subject === "large") {
+                    sampleSizeAdvice = "大樣本情況下，根據中央極限定理，即使原始資料分佈不是常態，參數方法通常也是適用的。除非有特殊理由，否則參數方法是首選。";
+                }
+                
+                return {
+                    parametricMethod,
+                    nonParametricMethod,
+                    description,
+                    assumptions,
+                    whenToUse,
+                    sampleSizeAdvice,
+                    specialConsideration,
+                    postHocMethod
+                };
+            }
+            
+            // 顯示結果
+            function displayResults(recommendation) {
+                // 填充選擇摘要
+                let summaryText = `基於您選擇的：${optionLabels.subject[selections.subject]}、${optionLabels.group[selections.group]}、${optionLabels.testing[selections.testing]}、${optionLabels.distribution[selections.distribution]}、${optionLabels.variance[selections.variance]}`;
+                document.getElementById('selection-summary').textContent = summaryText;
+                
+                // 填充推薦方法
+                document.getElementById('parametric-method').textContent = recommendation.parametricMethod;
+                document.getElementById('nonparametric-method').textContent = recommendation.nonParametricMethod;
+                document.getElementById('method-description').textContent = recommendation.description;
+                document.getElementById('sample-advice').textContent = recommendation.sampleSizeAdvice;
+                
+                // 填充假設條件列表
+                const assumptionsList = document.getElementById('assumptions-list');
+                assumptionsList.innerHTML = '';
+                recommendation.assumptions.forEach(assumption => {
+                    const li = document.createElement('li');
+                    li.textContent = assumption;
+                    assumptionsList.appendChild(li);
+                });
+                
+                // 填充使用情境
+                document.getElementById('usage-example').textContent = recommendation.whenToUse;
+                
+                // 特殊考量
+                const specialSection = document.getElementById('special-consideration');
+                if (recommendation.specialConsideration) {
+                    document.getElementById('special-text').textContent = recommendation.specialConsideration;
+                    specialSection.style.display = 'block';
+                } else {
+                    specialSection.style.display = 'none';
+                }
+                
+                // 事後比較方法
+                const posthocSection = document.getElementById('posthoc-section');
+                if (recommendation.postHocMethod && 
+                    (recommendation.parametricMethod.includes('變異數分析') || 
+                     recommendation.parametricMethod.includes('ANOVA') || 
+                     recommendation.parametricMethod.includes('共變數分析') || 
+                     recommendation.parametricMethod.includes('ANCOVA'))) {
+                    document.getElementById('posthoc-methods').textContent = recommendation.postHocMethod;
+                    posthocSection.style.display = 'block';
+                } else {
+                    posthocSection.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>單尾與雙尾檢定比較</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+    
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    
+    @media (min-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .form-field {
+      margin-bottom: 12px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    .result-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .result-field {
+      margin-bottom: 12px;
+    }
+    
+    .result-label {
+      font-weight: 500;
+    }
+    
+    .result-value {
+      font-size: 18px;
+    }
+    
+    .conclusion {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    
+    .conclusion-reject {
+      background-color: #d1fae5;
+    }
+    
+    .conclusion-accept {
+      background-color: #fee2e2;
+    }
+    
+    ul {
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+    
+    li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>單尾與雙尾檢定比較</h1>
+  <p>
+    使用案例：2000年小學5年級學生的平均身高為148.5cm，變異數為7.8²=60.84（標準差為7.8）。現在的平均身高為150cm。
+    我們想檢定現在的平均身高是否顯著高於之前的平均身高？
+  </p>
+  
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>參數設定</h2>
+      <div class="form-group">
+        <div class="form-field">
+          <label for="meanBefore">15年前平均身高 (μ₀)</label>
+          <input type="number" id="meanBefore" value="148.5" step="0.1">
+        </div>
+        <div class="form-field">
+          <label for="meanAfter">現在平均身高 (μ₁)</label>
+          <input type="number" id="meanAfter" value="150" step="0.1">
+        </div>
+        <div class="form-field">
+          <label for="stdDev">標準差 (σ)</label>
+          <input type="number" id="stdDev" value="7.8" step="0.1">
+        </div>
+        <div class="form-field">
+          <label for="sampleSize">樣本大小 (n)</label>
+          <input type="number" id="sampleSize" value="100">
+        </div>
+        <div class="form-field">
+          <label for="alpha">顯著水準 (α)</label>
+          <input type="number" id="alpha" value="0.05" step="0.01" min="0.01" max="0.1">
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>計算結果</h2>
+      <div class="result-group">
+        <div class="result-field">
+          <p class="result-label">Z 值：</p>
+          <p class="result-value" id="zScore">-</p>
+        </div>
+        <div class="result-field">
+          <p class="result-label">標準誤 (SE)：</p>
+          <p class="result-value" id="standardError">-</p>
+        </div>
+        <div class="result-field">
+          <p class="result-label">單尾 P 值：</p>
+          <p class="result-value" id="pValueOneTail">-</p>
+        </div>
+        <div class="result-field">
+          <p class="result-label">雙尾 P 值：</p>
+          <p class="result-value" id="pValueTwoTail">-</p>
+        </div>
+        <div class="result-field">
+          <p class="result-label">單尾臨界值 (Z)：</p>
+          <p class="result-value" id="criticalValueOneTail">-</p>
+        </div>
+        <div class="result-field">
+          <p class="result-label">雙尾臨界值 (Z)：</p>
+          <p class="result-value" id="criticalValueTwoTail">-</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>單尾檢定結果</h2>
+      <p id="oneTailH0"></p>
+      <p id="oneTailH1"></p>
+      
+      <div class="conclusion" id="oneTailConclusion">
+        <p><strong>結論：</strong><span id="oneTailResult">-</span></p>
+        <p id="oneTailExplanation">-</p>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>雙尾檢定結果</h2>
+      <p id="twoTailH0"></p>
+      <p id="twoTailH1"></p>
+      
+      <div class="conclusion" id="twoTailConclusion">
+        <p><strong>結論：</strong><span id="twoTailResult">-</span></p>
+        <p id="twoTailExplanation">-</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <h2>單尾與雙尾檢定的差異</h2>
+    <ul>
+      <li><strong>單尾檢定</strong>：只關注一個方向的差異（如「是否顯著高於」）。臨界區域只在分佈的一側。</li>
+      <li><strong>雙尾檢定</strong>：關注兩個方向的差異（如「是否顯著不同」）。臨界區域分佈在兩側。</li>
+      <li><strong>顯著性水準分配</strong>：單尾檢定將全部的α放在一側，而雙尾檢定將α分成兩半，每側各佔α/2。</li>
+      <li><strong>p值計算</strong>：單尾檢定只考慮一側的尾部面積，雙尾檢定考慮兩側的尾部面積總和。</li>
+      <li><strong>應用場景</strong>：當我們只關心單方向的變化時使用單尾檢定；當我們關心任何方向的變化時使用雙尾檢定。</li>
+    </ul>
+  </div>
+  
+  <div class="card">
+    <h2>在此案例中的解釋</h2>
+    <p>
+      在此案例中，我們想要檢定「現在的小學5年級學生平均身高是否顯著高於15年前」。
+    </p>
+    <p id="caseExplanationOne">
+      <strong>單尾檢定結果</strong>：-
+    </p>
+    <p id="caseExplanationTwo">
+      <strong>雙尾檢定結果</strong>：-
+    </p>
+  </div>
+
+  <script>
+    // All input elements
+    const inputs = document.querySelectorAll('input');
+    
+    // Get references to all input fields
+    const meanBeforeInput = document.getElementById('meanBefore');
+    const meanAfterInput = document.getElementById('meanAfter');
+    const stdDevInput = document.getElementById('stdDev');
+    const sampleSizeInput = document.getElementById('sampleSize');
+    const alphaInput = document.getElementById('alpha');
+    
+    // Get references to all output fields
+    const zScoreOutput = document.getElementById('zScore');
+    const standardErrorOutput = document.getElementById('standardError');
+    const pValueOneTailOutput = document.getElementById('pValueOneTail');
+    const pValueTwoTailOutput = document.getElementById('pValueTwoTail');
+    const criticalValueOneTailOutput = document.getElementById('criticalValueOneTail');
+    const criticalValueTwoTailOutput = document.getElementById('criticalValueTwoTail');
+    
+    const oneTailH0Output = document.getElementById('oneTailH0');
+    const oneTailH1Output = document.getElementById('oneTailH1');
+    const oneTailResultOutput = document.getElementById('oneTailResult');
+    const oneTailExplanationOutput = document.getElementById('oneTailExplanation');
+    const oneTailConclusionOutput = document.getElementById('oneTailConclusion');
+    
+    const twoTailH0Output = document.getElementById('twoTailH0');
+    const twoTailH1Output = document.getElementById('twoTailH1');
+    const twoTailResultOutput = document.getElementById('twoTailResult');
+    const twoTailExplanationOutput = document.getElementById('twoTailExplanation');
+    const twoTailConclusionOutput = document.getElementById('twoTailConclusion');
+    
+    const caseExplanationOneOutput = document.getElementById('caseExplanationOne');
+    const caseExplanationTwoOutput = document.getElementById('caseExplanationTwo');
+    
+    // Calculate normal CDF (cumulative distribution function)
+    function normalCDF(x) {
+      // Approximation of the normal CDF
+      if (x < 0) {
+        return 1 - normalCDF(-x);
+      }
+      
+      const t = 1 / (1 + 0.2316419 * x);
+      const d = 0.3989423 * Math.exp(-x * x / 2);
+      const prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+      return 1 - prob;
+    }
+    
+    // Function to perform the calculations
+    function calculateResults() {
+      // Get values from inputs
+      const meanBefore = parseFloat(meanBeforeInput.value);
+      const meanAfter = parseFloat(meanAfterInput.value);
+      const stdDev = parseFloat(stdDevInput.value);
+      const sampleSize = parseInt(sampleSizeInput.value);
+      const alpha = parseFloat(alphaInput.value);
+      
+      // Calculate standard error
+      const se = stdDev / Math.sqrt(sampleSize);
+      
+      // Calculate z-score
+      const z = (meanAfter - meanBefore) / se;
+      
+      // Calculate p-values
+      // P(Z > z) = 1 - P(Z < z) = 1 - normalCDF(z)
+      const pOne = 1 - normalCDF(z);
+      
+      // For two-tailed test P(|Z| > |z|) = 2 * min(P(Z < z), P(Z > z))
+      const pTwo = 2 * Math.min(pOne, normalCDF(z));
+      
+      // Approximate critical values for normal distribution
+      let critOne = 1.645; // Default for alpha = 0.05 one-tailed
+      let critTwo = 1.96;  // Default for alpha = 0.05 two-tailed
+      
+      // Adjust based on common alpha values
+      if (alpha === 0.01) {
+        critOne = 2.326;
+        critTwo = 2.576;
+      } else if (alpha === 0.1) {
+        critOne = 1.282;
+        critTwo = 1.645;
+      }
+      
+      // Determine significance
+      const oneTailResult = z > critOne ? "拒絕虛無假設" : "不拒絕虛無假設";
+      const twoTailResult = Math.abs(z) > critTwo ? "拒絕虛無假設" : "不拒絕虛無假設";
+      
+      // Update the outputs
+      zScoreOutput.textContent = z.toFixed(4);
+      standardErrorOutput.textContent = se.toFixed(4);
+      pValueOneTailOutput.textContent = pOne.toFixed(4);
+      pValueTwoTailOutput.textContent = pTwo.toFixed(4);
+      criticalValueOneTailOutput.textContent = critOne.toFixed(4);
+      criticalValueTwoTailOutput.textContent = `±${critTwo.toFixed(4)}`;
+      
+      // Update hypotheses
+      oneTailH0Output.innerHTML = `<span class="font-medium">虛無假設 (H₀):</span> μ ≤ ${meanBefore}cm (平均身高不高於15年前)`;
+      oneTailH1Output.innerHTML = `<span class="font-medium">對立假設 (H₁):</span> μ > ${meanBefore}cm (平均身高高於15年前)`;
+      
+      twoTailH0Output.innerHTML = `<span class="font-medium">虛無假設 (H₀):</span> μ = ${meanBefore}cm (平均身高與15年前相同)`;
+      twoTailH1Output.innerHTML = `<span class="font-medium">對立假設 (H₁):</span> μ ≠ ${meanBefore}cm (平均身高與15年前不同)`;
+      
+      // Update results
+      oneTailResultOutput.textContent = oneTailResult;
+      oneTailExplanationOutput.textContent = pOne < alpha 
+        ? `因為 p 值 (${pOne.toFixed(4)}) < α (${alpha})，所以我們拒絕虛無假設，可以說現在的平均身高顯著高於15年前的平均身高。` 
+        : `因為 p 值 (${pOne.toFixed(4)}) > α (${alpha})，所以我們不拒絕虛無假設，無法證明現在的平均身高顯著高於15年前的平均身高。`;
+      
+      twoTailResultOutput.textContent = twoTailResult;
+      twoTailExplanationOutput.textContent = pTwo < alpha 
+        ? `因為 p 值 (${pTwo.toFixed(4)}) < α (${alpha})，所以我們拒絕虛無假設，可以說現在的平均身高與15年前的平均身高顯著不同。` 
+        : `因為 p 值 (${pTwo.toFixed(4)}) > α (${alpha})，所以我們不拒絕虛無假設，無法證明現在的平均身高與15年前的平均身高顯著不同。`;
+      
+      // Update conclusion background colors
+      oneTailConclusionOutput.className = pOne < alpha ? 'conclusion conclusion-reject' : 'conclusion conclusion-accept';
+      twoTailConclusionOutput.className = pTwo < alpha ? 'conclusion conclusion-reject' : 'conclusion conclusion-accept';
+      
+      // Update case explanations
+      caseExplanationOneOutput.innerHTML = `<strong>單尾檢定結果</strong>：${pOne < alpha 
+        ? `因為我們得到的 p 值 (${pOne.toFixed(4)}) 小於顯著水準 α (${alpha})，所以有充分的統計證據表明現在的平均身高顯著高於15年前的平均身高。` 
+        : `因為我們得到的 p 值 (${pOne.toFixed(4)}) 大於顯著水準 α (${alpha})，所以沒有充分的統計證據表明現在的平均身高顯著高於15年前的平均身高。`}`;
+      
+      caseExplanationTwoOutput.innerHTML = `<strong>雙尾檢定結果</strong>：${pTwo < alpha 
+        ? `因為我們得到的 p 值 (${pTwo.toFixed(4)}) 小於顯著水準 α (${alpha})，所以有充分的統計證據表明現在的平均身高與15年前的平均身高顯著不同。但是，這個結果不能直接告訴我們是「高於」還是「低於」，只是「不同」。` 
+        : `因為我們得到的 p 值 (${pTwo.toFixed(4)}) 大於顯著水準 α (${alpha})，所以沒有充分的統計證據表明現在的平均身高與15年前的平均身高顯著不同。`}`;
+    }
+    
+    // Add event listeners to all inputs
+    inputs.forEach(input => {
+      input.addEventListener('input', calculateResults);
+    });
+    
+    // Initial calculation
+    calculateResults();
+  </script>
+</body>
+</html>

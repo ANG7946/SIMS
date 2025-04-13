@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>常態分佈信賴區間視覺化工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.2/d3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, 'Microsoft JhengHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .checkbox-group {
+            margin-top: 15px;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .checkbox-label input {
+            margin-right: 8px;
+        }
+        #chart {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>常態分佈信賴區間視覺化工具</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="mean">平均數 (μ):</label>
+                <input type="number" id="mean" value="0" step="1">
+            </div>
+            <div class="control-group">
+                <label for="stdDev">標準差 (σ):</label>
+                <input type="number" id="stdDev" value="1" min="0.1" step="0.1">
+            </div>
+            <div class="control-group">
+                <label for="xMin">X軸最小值:</label>
+                <input type="number" id="xMin" value="-4" step="0.5">
+            </div>
+            <div class="control-group">
+                <label for="xMax">X軸最大值:</label>
+                <input type="number" id="xMax" value="4" step="0.5">
+            </div>
+            
+            <div class="control-group checkbox-group">
+                <label>顯示信賴區間:</label>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="show1Sigma" checked>
+                    <span>1σ (68.27%)</span>
+                </div>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="show2Sigma" checked>
+                    <span>2σ (95.45%)</span>
+                </div>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="show3Sigma" checked>
+                    <span>3σ (99.73%)</span>
+                </div>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="show95CI">
+                    <span>95% 信賴區間 (1.96σ)</span>
+                </div>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="show99CI">
+                    <span>99% 信賴區間 (2.58σ)</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chart"></div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4682B4;"></div>
+                <span>常態分佈曲線</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(255, 99, 71, 0.4);"></div>
+                <span>1σ (68.27%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(255, 165, 0, 0.3);"></div>
+                <span>2σ (95.45%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(144, 238, 144, 0.3);"></div>
+                <span>3σ (99.73%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(147, 112, 219, 0.3);"></div>
+                <span>95% 信賴區間 (1.96σ)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(64, 224, 208, 0.3);"></div>
+                <span>99% 信賴區間 (2.58σ)</span>
+            </div>
+        </div>
+        
+        <table id="statisticsTable">
+            <thead>
+                <tr>
+                    <th>信賴區間</th>
+                    <th>Z值</th>
+                    <th>區間範圍</th>
+                    <th>涵蓋機率</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="sigma1Row">
+                    <td>1σ</td>
+                    <td>±1.0</td>
+                    <td>μ ± 1.0σ</td>
+                    <td>68.27%</td>
+                </tr>
+                <tr id="sigma2Row">
+                    <td>2σ</td>
+                    <td>±2.0</td>
+                    <td>μ ± 2.0σ</td>
+                    <td>95.45%</td>
+                </tr>
+                <tr id="sigma3Row">
+                    <td>3σ</td>
+                    <td>±3.0</td>
+                    <td>μ ± 3.0σ</td>
+                    <td>99.73%</td>
+                </tr>
+                <tr id="ci95Row">
+                    <td>95% 信賴區間</td>
+                    <td>±1.96</td>
+                    <td>μ ± 1.96σ</td>
+                    <td>95.00%</td>
+                </tr>
+                <tr id="ci99Row">
+                    <td>99% 信賴區間</td>
+                    <td>±2.58</td>
+                    <td>μ ± 2.58σ</td>
+                    <td>99.00%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // 建立並渲染圖表
+        function renderChart() {
+            // 取得參數
+            const mean = parseFloat(document.getElementById('mean').value);
+            const stdDev = parseFloat(document.getElementById('stdDev').value);
+            const xMin = parseFloat(document.getElementById('xMin').value);
+            const xMax = parseFloat(document.getElementById('xMax').value);
+            
+            const show1Sigma = document.getElementById('show1Sigma').checked;
+            const show2Sigma = document.getElementById('show2Sigma').checked;
+            const show3Sigma = document.getElementById('show3Sigma').checked;
+            const show95CI = document.getElementById('show95CI').checked;
+            const show99CI = document.getElementById('show99CI').checked;
+            
+            // 清除原有圖表
+            d3.select('#chart').html('');
+            
+            // 設定圖表尺寸和邊距
+            const margin = {top: 40, right: 30, bottom: 50, left: 60};
+            const width = document.getElementById('chart').clientWidth - margin.left - margin.right;
+            const height = document.getElementById('chart').clientHeight - margin.top - margin.bottom;
+            
+            // 創建SVG元素
+            const svg = d3.select('#chart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // 創建X比例尺
+            const x = d3.scaleLinear()
+                .domain([xMin, xMax])
+                .range([0, width]);
+            
+            // 添加X軸
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+            
+            // 常態分佈PDF函數
+            function normalPDF(x, mean, stdDev) {
+                return (1 / (stdDev * Math.sqrt(2 * Math.PI))) * 
+                       Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+            }
+            
+            // 生成數據點
+            const points = [];
+            for (let xi = xMin; xi <= xMax; xi += 0.1) {
+                points.push({
+                    x: xi,
+                    y: normalPDF(xi, mean, stdDev)
+                });
+            }
+            
+            // 找出最大y值，用於設定Y軸比例
+            const maxY = d3.max(points, d => d.y);
+            
+            // 創建Y比例尺
+            const y = d3.scaleLinear()
+                .domain([0, maxY * 1.1]) // 增加10%的上邊界
+                .range([height, 0]);
+            
+            // 添加Y軸
+            svg.append('g')
+                .call(d3.axisLeft(y));
+            
+            // 定義線生成器
+            const line = d3.line()
+                .x(d => x(d.x))
+                .y(d => y(d.y))
+                .curve(d3.curveBasis);
+            
+            // 畫常態分佈曲線
+            svg.append('path')
+                .datum(points)
+                .attr('fill', 'none')
+                .attr('stroke', '#4682B4')
+                .attr('stroke-width', 2)
+                .attr('d', line);
+            
+            // 計算信賴區間的區域
+            function createAreaPoints(lowerBound, upperBound) {
+                const areaPoints = [];
+                // 使用更小的步長以獲得更平滑的曲線
+                const step = 0.05;
+                
+                // 確保範圍內有足夠的點
+                for (let xi = Math.max(lowerBound, xMin); xi <= Math.min(upperBound, xMax); xi += step) {
+                    areaPoints.push({
+                        x: xi,
+                        y: normalPDF(xi, mean, stdDev)
+                    });
+                }
+                
+                // 如果點的數量不足，確保至少有邊界點
+                if (areaPoints.length < 2) {
+                    if (lowerBound >= xMin && lowerBound <= xMax) {
+                        areaPoints.push({
+                            x: lowerBound,
+                            y: normalPDF(lowerBound, mean, stdDev)
+                        });
+                    }
+                    if (upperBound >= xMin && upperBound <= xMax) {
+                        areaPoints.push({
+                            x: upperBound,
+                            y: normalPDF(upperBound, mean, stdDev)
+                        });
+                    }
+                }
+                
+                return areaPoints;
+            }
+            
+            // 畫各個信賴區間
+            // 1σ
+            if (show1Sigma) {
+                const sigma1Lower = mean - 1 * stdDev;
+                const sigma1Upper = mean + 1 * stdDev;
+                const sigma1Points = createAreaPoints(sigma1Lower, sigma1Upper);
+                
+                // 確保有足夠的點來平滑填充區域
+                if (sigma1Points.length > 0) {
+                    // 確保區域前後有足夠的點
+                    const firstPoint = {...sigma1Points[0]};
+                    firstPoint.x = sigma1Lower;
+                    
+                    const lastPoint = {...sigma1Points[sigma1Points.length - 1]};
+                    lastPoint.x = sigma1Upper;
+                    
+                    const enhancedPoints = [firstPoint, ...sigma1Points, lastPoint];
+                
+                    svg.append('path')
+                        .datum(enhancedPoints)
+                        .attr('fill', 'rgba(255, 99, 71, 0.4)')
+                        .attr('d', d3.area()
+                            .x(d => x(d.x))
+                            .y0(height)
+                            .y1(d => y(d.y))
+                        );
+                }
+                
+                // 繪製信賴區間標記線
+                svg.append('line')
+                    .attr('x1', x(sigma1Lower))
+                    .attr('y1', 0)
+                    .attr('x2', x(sigma1Lower))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(255, 99, 71, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                svg.append('line')
+                    .attr('x1', x(sigma1Upper))
+                    .attr('y1', 0)
+                    .attr('x2', x(sigma1Upper))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(255, 99, 71, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                // 更新表格數據
+                document.querySelector('#sigma1Row td:nth-child(3)').textContent = 
+                    `${mean.toFixed(2)} ± ${stdDev.toFixed(2)} (${sigma1Lower.toFixed(2)} 到 ${sigma1Upper.toFixed(2)})`;
+            } else {
+                document.getElementById('sigma1Row').style.opacity = 0.3;
+            }
+            
+            // 2σ
+            if (show2Sigma) {
+                const sigma2Lower = mean - 2 * stdDev;
+                const sigma2Upper = mean + 2 * stdDev;
+                const sigma2Points = createAreaPoints(sigma2Lower, sigma2Upper);
+                
+                // 確保有足夠的點來平滑填充區域
+                if (sigma2Points.length > 0) {
+                    // 確保區域前後有足夠的點
+                    const firstPoint = {...sigma2Points[0]};
+                    firstPoint.x = sigma2Lower;
+                    
+                    const lastPoint = {...sigma2Points[sigma2Points.length - 1]};
+                    lastPoint.x = sigma2Upper;
+                    
+                    const enhancedPoints = [firstPoint, ...sigma2Points, lastPoint];
+                
+                    svg.append('path')
+                        .datum(enhancedPoints)
+                        .attr('fill', 'rgba(255, 165, 0, 0.3)')
+                        .attr('d', d3.area()
+                            .x(d => x(d.x))
+                            .y0(height)
+                            .y1(d => y(d.y))
+                        );
+                }
+                
+                svg.append('line')
+                    .attr('x1', x(sigma2Lower))
+                    .attr('y1', 0)
+                    .attr('x2', x(sigma2Lower))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(255, 165, 0, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                svg.append('line')
+                    .attr('x1', x(sigma2Upper))
+                    .attr('y1', 0)
+                    .attr('x2', x(sigma2Upper))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(255, 165, 0, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                document.querySelector('#sigma2Row td:nth-child(3)').textContent = 
+                    `${mean.toFixed(2)} ± ${(2*stdDev).toFixed(2)} (${sigma2Lower.toFixed(2)} 到 ${sigma2Upper.toFixed(2)})`;
+            } else {
+                document.getElementById('sigma2Row').style.opacity = 0.3;
+            }
+            
+            // 3σ
+            if (show3Sigma) {
+                const sigma3Lower = mean - 3 * stdDev;
+                const sigma3Upper = mean + 3 * stdDev;
+                const sigma3Points = createAreaPoints(sigma3Lower, sigma3Upper);
+                
+                // 確保有足夠的點來平滑填充區域
+                if (sigma3Points.length > 0) {
+                    // 確保區域前後有足夠的點
+                    const firstPoint = {...sigma3Points[0]};
+                    firstPoint.x = sigma3Lower;
+                    
+                    const lastPoint = {...sigma3Points[sigma3Points.length - 1]};
+                    lastPoint.x = sigma3Upper;
+                    
+                    const enhancedPoints = [firstPoint, ...sigma3Points, lastPoint];
+                
+                    svg.append('path')
+                        .datum(enhancedPoints)
+                        .attr('fill', 'rgba(144, 238, 144, 0.3)')
+                        .attr('d', d3.area()
+                            .x(d => x(d.x))
+                            .y0(height)
+                            .y1(d => y(d.y))
+                        );
+                }
+                
+                svg.append('line')
+                    .attr('x1', x(sigma3Lower))
+                    .attr('y1', 0)
+                    .attr('x2', x(sigma3Lower))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(144, 238, 144, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                svg.append('line')
+                    .attr('x1', x(sigma3Upper))
+                    .attr('y1', 0)
+                    .attr('x2', x(sigma3Upper))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(144, 238, 144, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                document.querySelector('#sigma3Row td:nth-child(3)').textContent = 
+                    `${mean.toFixed(2)} ± ${(3*stdDev).toFixed(2)} (${sigma3Lower.toFixed(2)} 到 ${sigma3Upper.toFixed(2)})`;
+            } else {
+                document.getElementById('sigma3Row').style.opacity = 0.3;
+            }
+            
+            // 95% 信賴區間 (1.96σ)
+            if (show95CI) {
+                const ci95Lower = mean - 1.96 * stdDev;
+                const ci95Upper = mean + 1.96 * stdDev;
+                const ci95Points = createAreaPoints(ci95Lower, ci95Upper);
+                
+                // 確保有足夠的點來平滑填充區域
+                if (ci95Points.length > 0) {
+                    // 確保區域前後有足夠的點
+                    const firstPoint = {...ci95Points[0]};
+                    firstPoint.x = ci95Lower;
+                    
+                    const lastPoint = {...ci95Points[ci95Points.length - 1]};
+                    lastPoint.x = ci95Upper;
+                    
+                    const enhancedPoints = [firstPoint, ...ci95Points, lastPoint];
+                
+                    svg.append('path')
+                        .datum(enhancedPoints)
+                        .attr('fill', 'rgba(147, 112, 219, 0.3)')
+                        .attr('d', d3.area()
+                            .x(d => x(d.x))
+                            .y0(height)
+                            .y1(d => y(d.y))
+                        );
+                }
+                
+                svg.append('line')
+                    .attr('x1', x(ci95Lower))
+                    .attr('y1', 0)
+                    .attr('x2', x(ci95Lower))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(147, 112, 219, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                svg.append('line')
+                    .attr('x1', x(ci95Upper))
+                    .attr('y1', 0)
+                    .attr('x2', x(ci95Upper))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(147, 112, 219, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                document.querySelector('#ci95Row td:nth-child(3)').textContent = 
+                    `${mean.toFixed(2)} ± ${(1.96*stdDev).toFixed(2)} (${ci95Lower.toFixed(2)} 到 ${ci95Upper.toFixed(2)})`;
+            } else {
+                document.getElementById('ci95Row').style.opacity = 0.3;
+            }
+            
+            // 99% 信賴區間 (2.58σ)
+            if (show99CI) {
+                const ci99Lower = mean - 2.58 * stdDev;
+                const ci99Upper = mean + 2.58 * stdDev;
+                const ci99Points = createAreaPoints(ci99Lower, ci99Upper);
+                
+                // 確保有足夠的點來平滑填充區域
+                if (ci99Points.length > 0) {
+                    // 確保區域前後有足夠的點
+                    const firstPoint = {...ci99Points[0]};
+                    firstPoint.x = ci99Lower;
+                    
+                    const lastPoint = {...ci99Points[ci99Points.length - 1]};
+                    lastPoint.x = ci99Upper;
+                    
+                    const enhancedPoints = [firstPoint, ...ci99Points, lastPoint];
+                
+                    svg.append('path')
+                        .datum(enhancedPoints)
+                        .attr('fill', 'rgba(64, 224, 208, 0.3)')
+                        .attr('d', d3.area()
+                            .x(d => x(d.x))
+                            .y0(height)
+                            .y1(d => y(d.y))
+                        );
+                }
+                
+                svg.append('line')
+                    .attr('x1', x(ci99Lower))
+                    .attr('y1', 0)
+                    .attr('x2', x(ci99Lower))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(64, 224, 208, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                svg.append('line')
+                    .attr('x1', x(ci99Upper))
+                    .attr('y1', 0)
+                    .attr('x2', x(ci99Upper))
+                    .attr('y2', height)
+                    .attr('stroke', 'rgba(64, 224, 208, 0.8)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5');
+                
+                document.querySelector('#ci99Row td:nth-child(3)').textContent = 
+                    `${mean.toFixed(2)} ± ${(2.58*stdDev).toFixed(2)} (${ci99Lower.toFixed(2)} 到 ${ci99Upper.toFixed(2)})`;
+            } else {
+                document.getElementById('ci99Row').style.opacity = 0.3;
+            }
+            
+            // 繪製平均線
+            svg.append('line')
+                .attr('x1', x(mean))
+                .attr('y1', 0)
+                .attr('x2', x(mean))
+                .attr('y2', height)
+                .attr('stroke', 'red')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '10,5');
+            
+            // 添加標題
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", -margin.top / 2)
+                .attr("text-anchor", "middle")
+                .style("font-size", "16px")
+                .style("font-weight", "bold")
+                .text(`常態分佈 (μ = ${mean}, σ = ${stdDev})`);
+            
+            // 添加X軸標籤
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 10)
+                .attr("text-anchor", "middle")
+                .text("值");
+            
+            // 添加Y軸標籤
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -margin.left + 15)
+                .attr("text-anchor", "middle")
+                .text("機率密度");
+            
+            // 更新表格透明度
+            document.getElementById('sigma1Row').style.opacity = show1Sigma ? 1 : 0.3;
+            document.getElementById('sigma2Row').style.opacity = show2Sigma ? 1 : 0.3;
+            document.getElementById('sigma3Row').style.opacity = show3Sigma ? 1 : 0.3;
+            document.getElementById('ci95Row').style.opacity = show95CI ? 1 : 0.3;
+            document.getElementById('ci99Row').style.opacity = show99CI ? 1 : 0.3;
+        }
+        
+        // 初始化渲染
+        renderChart();
+        
+        // 添加事件監聽器
+        document.getElementById('mean').addEventListener('input', renderChart);
+        document.getElementById('stdDev').addEventListener('input', renderChart);
+        document.getElementById('xMin').addEventListener('input', renderChart);
+        document.getElementById('xMax').addEventListener('input', renderChart);
+        document.getElementById('show1Sigma').addEventListener('change', renderChart);
+        document.getElementById('show2Sigma').addEventListener('change', renderChart);
+        document.getElementById('show3Sigma').addEventListener('change', renderChart);
+        document.getElementById('show95CI').addEventListener('change', renderChart);
+        document.getElementById('show99CI').addEventListener('change', renderChart);
+        
+        // 監聽視窗大小變化，自適應重繪
+        window.addEventListener('resize', renderChart);
+    </script>
+</body>
+</html>

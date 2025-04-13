@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貝式統計醫學檢測模擬器</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .right-panel {
+            flex: 1.5;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .slider-value {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+        }
+        .result {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #2980b9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .positive {
+            background-color: #ffeded;
+        }
+        .negative {
+            background-color: #edffed;
+        }
+        .disease {
+            background-color: #ededff;
+        }
+        .no-disease {
+            background-color: #fff9ed;
+        }
+        .true-positive {
+            background-color: #ffd6d6;
+        }
+        .false-positive {
+            background-color: #fff0d6;
+        }
+        .false-negative {
+            background-color: #d6e9ff;
+        }
+        .true-negative {
+            background-color: #d6ffd6;
+        }
+        #visualization {
+            width: 100%;
+            height: 300px;
+            position: relative;
+            border: 1px solid #ddd;
+            overflow: hidden;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        .vis-section {
+            position: absolute;
+            bottom: 0;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            box-sizing: border-box;
+            padding: 5px;
+            transition: all 0.5s ease-in-out;
+            overflow: hidden;
+        }
+        .vis-section span {
+            padding: 3px;
+            margin: 1px;
+            white-space: nowrap;
+            font-size: 12px;
+            color: #333;
+        }
+        .formula {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+        }
+        .example-selector {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9f7fe;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>貝式統計醫學檢測模擬器</h1>
+    <div class="example-selector">
+        <h3>預設案例：</h3>
+        <button onclick="loadExample('breastCancer')">乳腺癌檢測 (常見例子)</button>
+        <button onclick="loadExample('rareDiseaseHighFP')">罕見疾病檢測 (高偽陽性)</button>
+        <button onclick="loadExample('commonDiseaseHighFN')">常見疾病檢測 (高漏診率)</button>
+        <button onclick="loadExample('covid')">新冠病毒檢測</button>
+        <button onclick="loadExample('highPrevalence')">高發生率疾病 (80%)</button>
+    </div>
+    <div class="container">
+        <div class="left-panel">
+            <h2>輸入參數</h2>
+            <div class="input-group">
+                <label for="prevalence">疾病發生率 (先驗機率 P(D)):</label>
+                <div class="slider-container">
+                    <input type="range" id="prevalence" min="0.1" max="99.9" value="1" step="0.1" oninput="updateSimulation()">
+                    <span class="slider-value" id="prevalence-value">1%</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="sensitivity">測試敏感度 (靈敏度) P(T+|D):</label>
+                <div class="slider-container">
+                    <input type="range" id="sensitivity" min="50" max="100" value="80" step="0.5" oninput="updateSimulation()">
+                    <span class="slider-value" id="sensitivity-value">80%</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="specificity">測試特異度 P(T-|D-):</label>
+                <div class="slider-container">
+                    <input type="range" id="specificity" min="50" max="100" value="90" step="0.5" oninput="updateSimulation()">
+                    <span class="slider-value" id="specificity-value">90%</span>
+                </div>
+            </div>
+            <h2>貝式公式</h2>
+            <div class="formula">
+                P(D|T+) = [P(T+|D) × P(D)] ÷ P(T+)
+            </div>
+            <div class="formula">
+                P(T+) = P(T+|D) × P(D) + P(T+|D-) × P(D-)
+            </div>
+            <div class="result">
+                測試呈陽性時實際患病的機率：<br>
+                P(D|T+) = <span id="ppv">7.48%</span>
+            </div>
+            <div class="result">
+                測試呈陰性時實際健康的機率：<br>
+                P(D-|T-) = <span id="npv">99.78%</span>
+            </div>
+        </div>
+        <div class="right-panel">
+            <h2>統計分析 <small>(假設總人數: <span id="population">10,000</span>)</small></h2>
+            <table>
+                <tr>
+                    <th></th>
+                    <th>患有疾病 (D+)</th>
+                    <th>沒有疾病 (D-)</th>
+                    <th>總計</th>
+                </tr>
+                <tr>
+                    <th>測試陽性 (T+)</th>
+                    <td class="true-positive" id="true-positive">80</td>
+                    <td class="false-positive" id="false-positive">990</td>
+                    <td class="positive" id="total-positive">1,070</td>
+                </tr>
+                <tr>
+                    <th>測試陰性 (T-)</th>
+                    <td class="false-negative" id="false-negative">20</td>
+                    <td class="true-negative" id="true-negative">8,910</td>
+                    <td class="negative" id="total-negative">8,930</td>
+                </tr>
+                <tr>
+                    <th>總計</th>
+                    <td class="disease" id="total-disease">100</td>
+                    <td class="no-disease" id="total-no-disease">9,900</td>
+                    <td id="total-population">10,000</td>
+                </tr>
+            </table>
+            <div>
+                <h3>術語說明:</h3>
+                <ul>
+                    <li><strong>真陽性</strong>: 患有疾病，測試結果為陽性</li>
+                    <li><strong>假陽性 (偽陽性)</strong>: 沒有疾病，測試結果為陽性</li>
+                    <li><strong>真陰性</strong>: 沒有疾病，測試結果為陰性</li>
+                    <li><strong>假陰性 (偽陰性)</strong>: 患有疾病，測試結果為陰性</li>
+                </ul>
+            </div>
+            <h2>視覺化展示</h2>
+            <div id="visualization"></div>
+        </div>
+    </div>
+
+    <script>
+        const population = 10000;
+        
+        function updateSimulation() {
+            // 取得輸入值
+            const prevalence = parseFloat(document.getElementById('prevalence').value) / 100;
+            const sensitivity = parseFloat(document.getElementById('sensitivity').value) / 100;
+            const specificity = parseFloat(document.getElementById('specificity').value) / 100;
+            
+            // 更新滑桿顯示值
+            document.getElementById('prevalence-value').textContent = (prevalence * 100).toFixed(1) + '%';
+            document.getElementById('sensitivity-value').textContent = (sensitivity * 100).toFixed(1) + '%';
+            document.getElementById('specificity-value').textContent = (specificity * 100).toFixed(1) + '%';
+            
+            // 計算機率
+            const diseaseCount = Math.round(population * prevalence);
+            const noDiseaseCount = population - diseaseCount;
+            
+            const truePositiveCount = Math.round(diseaseCount * sensitivity);
+            const falseNegativeCount = diseaseCount - truePositiveCount;
+            
+            const trueNegativeCount = Math.round(noDiseaseCount * specificity);
+            const falsePositiveCount = noDiseaseCount - trueNegativeCount;
+            
+            const totalPositiveCount = truePositiveCount + falsePositiveCount;
+            const totalNegativeCount = falseNegativeCount + trueNegativeCount;
+            
+            // 計算PPV和NPV
+            const ppv = truePositiveCount / totalPositiveCount;
+            const npv = trueNegativeCount / totalNegativeCount;
+            
+            // 更新結果顯示
+            document.getElementById('ppv').textContent = (ppv * 100).toFixed(2) + '%';
+            document.getElementById('npv').textContent = (npv * 100).toFixed(2) + '%';
+            
+            // 更新表格
+            document.getElementById('true-positive').textContent = truePositiveCount.toLocaleString();
+            document.getElementById('false-positive').textContent = falsePositiveCount.toLocaleString();
+            document.getElementById('false-negative').textContent = falseNegativeCount.toLocaleString();
+            document.getElementById('true-negative').textContent = trueNegativeCount.toLocaleString();
+            document.getElementById('total-positive').textContent = totalPositiveCount.toLocaleString();
+            document.getElementById('total-negative').textContent = totalNegativeCount.toLocaleString();
+            document.getElementById('total-disease').textContent = diseaseCount.toLocaleString();
+            document.getElementById('total-no-disease').textContent = noDiseaseCount.toLocaleString();
+            document.getElementById('total-population').textContent = population.toLocaleString();
+            
+            // 更新視覺化
+            updateVisualization(
+                diseaseCount / population,
+                (truePositiveCount / population),
+                (falsePositiveCount / population),
+                (falseNegativeCount / population),
+                (trueNegativeCount / population)
+            );
+        }
+        
+        function updateVisualization(diseaseProp, tpProp, fpProp, fnProp, tnProp) {
+            const visContainer = document.getElementById('visualization');
+            visContainer.innerHTML = '';
+            
+            // 真陽性區域
+            const tpSection = document.createElement('div');
+            tpSection.className = 'vis-section true-positive';
+            tpSection.style.width = `${(tpProp / diseaseProp) * diseaseProp * 100}%`;
+            tpSection.style.left = '0';
+            tpSection.style.height = `${tpProp * 100}%`;
+            tpSection.innerHTML = `<span>真陽性</span><span>${(tpProp * 100).toFixed(1)}%</span>`;
+            visContainer.appendChild(tpSection);
+            
+            // 假陰性區域
+            const fnSection = document.createElement('div');
+            fnSection.className = 'vis-section false-negative';
+            fnSection.style.width = `${(fnProp / diseaseProp) * diseaseProp * 100}%`;
+            fnSection.style.left = `${(tpProp / diseaseProp) * diseaseProp * 100}%`;
+            fnSection.style.height = `${fnProp * 100}%`;
+            fnSection.innerHTML = `<span>假陰性</span><span>${(fnProp * 100).toFixed(1)}%</span>`;
+            visContainer.appendChild(fnSection);
+            
+            // 假陽性區域
+            const fpSection = document.createElement('div');
+            fpSection.className = 'vis-section false-positive';
+            fpSection.style.width = `${fpProp * 100}%`;
+            fpSection.style.left = `${diseaseProp * 100}%`;
+            fpSection.style.height = `${fpProp * 100}%`;
+            fpSection.innerHTML = `<span>假陽性</span><span>${(fpProp * 100).toFixed(1)}%</span>`;
+            visContainer.appendChild(fpSection);
+            
+            // 真陰性區域
+            const tnSection = document.createElement('div');
+            tnSection.className = 'vis-section true-negative';
+            tnSection.style.width = `${tnProp * 100}%`;
+            tnSection.style.left = `${(diseaseProp + fpProp) * 100}%`;
+            tnSection.style.height = `${tnProp * 100}%`;
+            tnSection.innerHTML = `<span>真陰性</span><span>${(tnProp * 100).toFixed(1)}%</span>`;
+            visContainer.appendChild(tnSection);
+        }
+        
+        function loadExample(example) {
+            switch(example) {
+                case 'breastCancer':
+                    document.getElementById('prevalence').value = 1;
+                    document.getElementById('sensitivity').value = 80;
+                    document.getElementById('specificity').value = 90;
+                    break;
+                case 'rareDiseaseHighFP':
+                    document.getElementById('prevalence').value = 0.5;
+                    document.getElementById('sensitivity').value = 95;
+                    document.getElementById('specificity').value = 85;
+                    break;
+                case 'commonDiseaseHighFN':
+                    document.getElementById('prevalence').value = 20;
+                    document.getElementById('sensitivity').value = 70;
+                    document.getElementById('specificity').value = 95;
+                    break;
+                case 'covid':
+                    document.getElementById('prevalence').value = 5;
+                    document.getElementById('sensitivity').value = 85;
+                    document.getElementById('specificity').value = 98;
+                    break;
+                case 'highPrevalence':
+                    document.getElementById('prevalence').value = 80;
+                    document.getElementById('sensitivity').value = 90;
+                    document.getElementById('specificity').value = 85;
+                    break;
+            }
+            updateSimulation();
+        }
+        
+        // 初始化
+        updateSimulation();
+    </script>
+</body>
+</html>
