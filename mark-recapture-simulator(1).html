@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捉放法（Mark-Recapture）模擬器</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 900px;
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #0d6efd;
+        }
+        .simulator-section {
+            margin-bottom: 30px;
+        }
+        .result-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #0d6efd;
+        }
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .animation-area {
+            height: 300px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background-color: #e9ecef;
+        }
+        .organism {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            transition: transform 0.3s ease, background-color 0.3s ease, border 0.3s ease;
+        }
+        .marked {
+            background-color: #dc3545;
+            border: 2px solid #0d6efd;
+        }
+        .captured {
+            border: 2px solid #198754;
+        }
+        .recaptured {
+            background-color: #dc3545;
+            border: 2px solid #198754;
+        }
+        .info-box {
+            margin-top: 20px;
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .simulation-status {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            color: #0d6efd;
+            min-height: 24px;
+        }
+        .animation-controls {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+        .legend-unmarked {
+            background-color: #6c757d;
+        }
+        .legend-marked {
+            background-color: #dc3545;
+            border: 2px solid #0d6efd;
+        }
+        .legend-captured {
+            background-color: #6c757d;
+            border: 2px solid #198754;
+        }
+        .legend-recaptured {
+            background-color: #dc3545;
+            border: 2px solid #198754;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>捉放法（Mark-Recapture）模擬器</h1>
+            <p class="lead">調整參數並點擊「模擬一次」按鈕來估算族群數量</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="simulator-section">
+                    <h3>設定參數</h3>
+                    <form id="simulatorForm">
+                        <div class="mb-3">
+                            <label for="totalPopulation" class="form-label">真實族群總數（N）</label>
+                            <input type="number" class="form-control" id="totalPopulation" min="10" max="500" value="100">
+                            <div class="form-text">請輸入 10 到 500 之間的數值</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="firstCapture" class="form-label">第一次捕捉與標記的數量（M）</label>
+                            <input type="number" class="form-control" id="firstCapture" min="1" value="20">
+                            <div class="form-text">必須小於族群總數</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="secondCapture" class="form-label">第二次捕捉的數量（C）</label>
+                            <input type="number" class="form-control" id="secondCapture" min="1" value="20">
+                            <div class="form-text">必須小於族群總數</div>
+                        </div>
+                        <div class="mb-3">
+                            <div id="errorMessage" class="error-message"></div>
+                        </div>
+                        <button type="button" id="simulateButton" class="btn btn-primary">模擬一次</button>
+                        <button type="button" id="simulateTenButton" class="btn btn-outline-primary ms-2">模擬10次</button>
+                        <button type="button" id="resetButton" class="btn btn-outline-secondary ms-2">重置</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div id="simulationStatus" class="simulation-status">準備開始模擬</div>
+                <div class="animation-area" id="animationArea">
+                    <!-- 動畫顯示區 -->
+                </div>
+                <div class="animation-controls">
+                    <button type="button" id="stepForwardButton" class="btn btn-sm btn-success" disabled>下一步 ▶</button>
+                    <button type="button" id="autoPlayButton" class="btn btn-sm btn-outline-success" disabled>自動播放 ▶▶</button>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-box legend-unmarked"></div>
+                        <span>未標記個體</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box legend-marked"></div>
+                        <span>標記個體</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box legend-captured"></div>
+                        <span>捕獲未標記</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box legend-recaptured"></div>
+                        <span>重捕標記</span>
+                    </div>
+                </div>
+                <div class="result-section">
+                    <h3>模擬結果</h3>
+                    <div id="singleResult">
+                        <p><strong>被重捕的標記個體數量（R）：</strong> <span id="recapturedCount">-</span></p>
+                        <p><strong>估算的族群數量（N'）：</strong> <span id="estimatedPopulation">-</span></p>
+                        <p><strong>真實族群總數（N）：</strong> <span id="actualPopulation">-</span></p>
+                        <p><strong>誤差百分比：</strong> <span id="errorPercentage">-</span></p>
+                    </div>
+                    <div id="multipleResults" style="display: none;">
+                        <p><strong>平均估算族群數量（N'）：</strong> <span id="avgEstimatedPopulation">-</span></p>
+                        <p><strong>平均誤差百分比：</strong> <span id="avgErrorPercentage">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box mt-4">
+            <h4>捉放法（Mark-Recapture）簡介</h4>
+            <p>捉放法是一種估算野生動物族群數量的方法，過程如下：</p>
+            <ol>
+                <li>第一次捕捉一定數量的個體（M），標記後放回原棲息地</li>
+                <li>一段時間後，再次捕捉一定數量的個體（C）</li>
+                <li>記錄在第二次捕捉中被標記過的個體數量（R）</li>
+                <li>根據公式 N' = (M × C) ÷ R 估算總族群數量</li>
+            </ol>
+            <p>此方法假設：</p>
+            <ul>
+                <li>標記不會影響個體的生存率或行為</li>
+                <li>標記個體在族群中均勻分布</li>
+                <li>在兩次捕捉期間族群大小相對穩定</li>
+                <li>所有個體被捕獲的機會相等</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 獲取DOM元素
+            const totalPopulationInput = document.getElementById('totalPopulation');
+            const firstCaptureInput = document.getElementById('firstCapture');
+            const secondCaptureInput = document.getElementById('secondCapture');
+            const simulateButton = document.getElementById('simulateButton');
+            const simulateTenButton = document.getElementById('simulateTenButton');
+            const resetButton = document.getElementById('resetButton');
+            const stepForwardButton = document.getElementById('stepForwardButton');
+            const autoPlayButton = document.getElementById('autoPlayButton');
+            const errorMessageDiv = document.getElementById('errorMessage');
+            const simulationStatusDiv = document.getElementById('simulationStatus');
+            const recapturedCountSpan = document.getElementById('recapturedCount');
+            const estimatedPopulationSpan = document.getElementById('estimatedPopulation');
+            const actualPopulationSpan = document.getElementById('actualPopulation');
+            const errorPercentageSpan = document.getElementById('errorPercentage');
+            const singleResultDiv = document.getElementById('singleResult');
+            const multipleResultsDiv = document.getElementById('multipleResults');
+            const avgEstimatedPopulationSpan = document.getElementById('avgEstimatedPopulation');
+            const avgErrorPercentageSpan = document.getElementById('avgErrorPercentage');
+            const animationArea = document.getElementById('animationArea');
+
+            // 模擬狀態
+            let simulationState = {
+                step: 0,
+                population: [],
+                markedIndividuals: [],
+                secondCaptured: [],
+                recaptured: [],
+                N: 0,
+                M: 0,
+                C: 0,
+                R: 0,
+                estimatedN: 0,
+                errorPercentage: 0,
+                autoPlayInterval: null
+            };
+
+            // 模擬一次按鈕事件
+            simulateButton.addEventListener('click', function() {
+                if (validateInputs()) {
+                    singleResultDiv.style.display = 'block';
+                    multipleResultsDiv.style.display = 'none';
+                    setupSimulation();
+                    
+                    stepForwardButton.disabled = false;
+                    autoPlayButton.disabled = false;
+                }
+            });
+
+            // 模擬10次按鈕事件
+            simulateTenButton.addEventListener('click', function() {
+                if (validateInputs()) {
+                    singleResultDiv.style.display = 'none';
+                    multipleResultsDiv.style.display = 'block';
+                    runMultipleSimulations(10);
+                    
+                    stepForwardButton.disabled = true;
+                    autoPlayButton.disabled = true;
+                }
+            });
+
+            // 重置按鈕事件
+            resetButton.addEventListener('click', function() {
+                totalPopulationInput.value = 100;
+                firstCaptureInput.value = 20;
+                secondCaptureInput.value = 20;
+                errorMessageDiv.textContent = '';
+                recapturedCountSpan.textContent = '-';
+                estimatedPopulationSpan.textContent = '-';
+                actualPopulationSpan.textContent = '-';
+                errorPercentageSpan.textContent = '-';
+                avgEstimatedPopulationSpan.textContent = '-';
+                avgErrorPercentageSpan.textContent = '-';
+                singleResultDiv.style.display = 'block';
+                multipleResultsDiv.style.display = 'none';
+                
+                resetSimulationState();
+                
+                stepForwardButton.disabled = true;
+                autoPlayButton.disabled = true;
+                
+                simulationStatusDiv.textContent = '準備開始模擬';
+                
+                if (simulationState.autoPlayInterval) {
+                    clearInterval(simulationState.autoPlayInterval);
+                    simulationState.autoPlayInterval = null;
+                    autoPlayButton.textContent = '自動播放 ▶▶';
+                    autoPlayButton.classList.remove('btn-success');
+                    autoPlayButton.classList.add('btn-outline-success');
+                }
+                
+                animationArea.innerHTML = '';
+            });
+
+            // 下一步按鈕事件
+            stepForwardButton.addEventListener('click', function() {
+                if (simulationState.step < 4) {
+                    simulationStep();
+                }
+            });
+
+            // 自動播放按鈕事件
+            autoPlayButton.addEventListener('click', function() {
+                if (simulationState.autoPlayInterval) {
+                    clearInterval(simulationState.autoPlayInterval);
+                    simulationState.autoPlayInterval = null;
+                    autoPlayButton.textContent = '自動播放 ▶▶';
+                    autoPlayButton.classList.remove('btn-success');
+                    autoPlayButton.classList.add('btn-outline-success');
+                } else {
+                    simulationState.autoPlayInterval = setInterval(function() {
+                        if (simulationState.step < 4) {
+                            simulationStep();
+                        } else {
+                            clearInterval(simulationState.autoPlayInterval);
+                            simulationState.autoPlayInterval = null;
+                            autoPlayButton.textContent = '自動播放 ▶▶';
+                            autoPlayButton.classList.remove('btn-success');
+                            autoPlayButton.classList.add('btn-outline-success');
+                        }
+                    }, 1500);
+                    
+                    autoPlayButton.textContent = '暫停 ⏸';
+                    autoPlayButton.classList.remove('btn-outline-success');
+                    autoPlayButton.classList.add('btn-success');
+                }
+            });
+
+            // 驗證輸入
+            function validateInputs() {
+                const N = parseInt(totalPopulationInput.value);
+                const M = parseInt(firstCaptureInput.value);
+                const C = parseInt(secondCaptureInput.value);
+
+                if (isNaN(N) || N < 10 || N > 500) {
+                    errorMessageDiv.textContent = '真實族群總數必須在10到500之間';
+                    return false;
+                }
+
+                if (isNaN(M) || M <= 0 || M >= N) {
+                    errorMessageDiv.textContent = '第一次捕捉數量必須大於0且小於族群總數';
+                    return false;
+                }
+
+                if (isNaN(C) || C <= 0 || C >= N) {
+                    errorMessageDiv.textContent = '第二次捕捉數量必須大於0且小於族群總數';
+                    return false;
+                }
+
+                errorMessageDiv.textContent = '';
+                return true;
+            }
+
+            // 設置模擬
+            function setupSimulation() {
+                const N = parseInt(totalPopulationInput.value);
+                const M = parseInt(firstCaptureInput.value);
+                const C = parseInt(secondCaptureInput.value);
+
+                animationArea.innerHTML = '';
+                
+                resetSimulationState();
+                
+                simulationState.N = N;
+                simulationState.M = M;
+                simulationState.C = C;
+                
+                // 創建族群
+                simulationState.population = Array.from({length: N}, (_, i) => i);
+                
+                // 繪製族群
+                drawPopulation(simulationState.population);
+                
+                // 進行第一次捕捉和標記
+                simulationState.markedIndividuals = markRandomIndividuals(simulationState.population, M);
+                
+                // 進行第二次捕捉
+                simulationState.secondCaptured = captureRandomIndividuals(simulationState.population, C);
+                
+                // 計算在第二次捕捉中被重新捕獲的標記個體數量
+                simulationState.recaptured = simulationState.secondCaptured.filter(
+                    index => simulationState.markedIndividuals.includes(index)
+                );
+                simulationState.R = simulationState.recaptured.length;
+                
+                // 使用公式估算族群數量
+                simulationState.estimatedN = (M * C) / (simulationState.R || 1); // 避免除以零
+                
+                // 計算誤差百分比
+                simulationState.errorPercentage = Math.abs(simulationState.estimatedN - N) / N * 100;
+                
+                // 設置步驟為0（初始狀態）
+                simulationState.step = 0;
+                
+                // 更新狀態文字
+                simulationStatusDiv.textContent = '族群準備好了，點擊「下一步」進行第一次捕捉和標記';
+                
+                // 顯示真實族群數
+                actualPopulationSpan.textContent = N;
+            }
+
+            // 模擬步驟
+            function simulationStep() {
+                simulationState.step++;
+                
+                switch(simulationState.step) {
+                    case 1: // 第一次捕捉和標記
+                        // 清除所有樣式
+                        document.querySelectorAll('.organism').forEach(organism => {
+                            organism.classList.remove('marked', 'captured', 'recaptured');
+                        });
+                        
+                        // 標記第一次捕捉的個體
+                        simulationState.markedIndividuals.forEach(index => {
+                            const organism = document.getElementById('organism-' + index);
+                            if (organism) {
+                                organism.classList.add('marked');
+                                
+                                // 為標記個體添加動畫效果
+                                organism.style.transform = 'scale(1.2)';
+                                setTimeout(() => {
+                                    organism.style.transform = '';
+                                }, 300);
+                            }
+                        });
+                        
+                        // 更新狀態文字
+                        simulationStatusDiv.textContent = `第一次捕捉：標記了 ${simulationState.M} 個個體`;
+                        break;
+                        
+                    case 2: // 混合階段（放回族群）
+                        // 清除動畫效果
+                        document.querySelectorAll('.organism').forEach(organism => {
+                            organism.style.transform = '';
+                        });
+                        
+                        // 更新狀態文字
+                        simulationStatusDiv.textContent = '標記個體已放回族群，混合中...';
+                        
+                        // 動態展示混合效果（隨機移動所有個體）
+                        document.querySelectorAll('.organism').forEach(organism => {
+                            randomMoveOrganism(organism);
+                        });
+                        break;
+                        
+                    case 3: // 第二次捕捉
+                        // 標記第二次捕捉的個體
+                        simulationState.secondCaptured.forEach(index => {
+                            const organism = document.getElementById('organism-' + index);
+                            if (organism) {
+                                if (organism.classList.contains('marked')) {
+                                    // 已經被標記的個體，現在被重新捕獲
+                                    organism.classList.add('recaptured');
+                                } else {
+                                    // 未標記的個體，現在被捕獲
+                                    organism.classList.add('captured');
+                                }
+                                
+                                // 為捕獲的個體添加動畫效果
+                                organism.style.transform = 'scale(1.2)';
+                                setTimeout(() => {
+                                    organism.style.transform = '';
+                                }, 300);
+                            }
+                        });
+                        
+                        // 更新狀態文字
+                        simulationStatusDiv.textContent = `第二次捕捉：捕獲了 ${simulationState.C} 個個體，其中 ${simulationState.R} 個是標記過的`;
+                        
+                        // 顯示重捕數量
+                        recapturedCountSpan.textContent = simulationState.R;
+                        break;
+                        
+                    case 4: // 計算結果
+                        // 顯示計算結果
+                        estimatedPopulationSpan.textContent = simulationState.estimatedN.toFixed(2);
+                        errorPercentageSpan.textContent = simulationState.errorPercentage.toFixed(2) + '%';
+                        
+                        // 更新狀態文字
+                        simulationStatusDiv.textContent = `模擬完成！估算族群數量: ${simulationState.estimatedN.toFixed(2)}，誤差: ${simulationState.errorPercentage.toFixed(2)}%`;
+                        
+                        // 禁用步進按鈕
+                        stepForwardButton.disabled = true;
+                        break;
+                }
+            }
+
+            // 執行多次模擬並計算平均值
+            function runMultipleSimulations(times) {
+                const N = parseInt(totalPopulationInput.value);
+                const M = parseInt(firstCaptureInput.value);
+                const C = parseInt(secondCaptureInput.value);
+
+                let totalEstimatedN = 0;
+                let totalErrorPercentage = 0;
+
+                // 清空動畫區域
+                animationArea.innerHTML = '';
+                
+                // 創建並顯示族群
+                const population = Array.from({length: N}, (_, i) => i);
+                drawPopulation(population);
+                
+                // 進行多次模擬並累加結果
+                for (let i = 0; i < times; i++) {
+                    // 進行第一次捕捉和標記
+                    const markedIndividuals = markRandomIndividuals(Array.from({length: N}, (_, i) => i), M);
+                    
+                    // 進行第二次捕捉
+                    const secondCaptured = captureRandomIndividuals(Array.from({length: N}, (_, i) => i), C);
+                    
+                    // 計算在第二次捕捉中被重新捕獲的標記個體數量
+                    const R = secondCaptured.filter(index => markedIndividuals.includes(index)).length;
+                    
+                    // 使用公式估算族群數量
+                    const estimatedN = (M * C) / (R || 1); // 避免除以零
+                    
+                    // 計算誤差百分比
+                    const errorPercentage = Math.abs(estimatedN - N) / N * 100;
+                    
+                    totalEstimatedN += estimatedN;
+                    totalErrorPercentage += errorPercentage;
+                }
+
+                // 最後一次模擬的視覺效果
+                const lastMarkedIndividuals = markRandomIndividuals(population, M);
+                lastMarkedIndividuals.forEach(index => {
+                    const organism = document.getElementById('organism-' + index);
+                    if (organism) {
+                        organism.classList.add('marked');
+                    }
+                });
+                
+                const lastSecondCaptured = captureRandomIndividuals(population, C);
+                const lastR = lastSecondCaptured.filter(index => lastMarkedIndividuals.includes(index)).length;
+                
+                lastSecondCaptured.forEach(index => {
+                    const organism = document.getElementById('organism-' + index);
+                    if (organism) {
+                        if (organism.classList.contains('marked')) {
+                            organism.classList.add('recaptured');
+                        } else {
+                            organism.classList.add('captured');
+                        }
+                    }
+                });
+
+                // 計算平均值
+                const avgEstimatedN = totalEstimatedN / times;
+                const avgErrorPercentage = totalErrorPercentage / times;
+                
+                // 顯示結果
+                avgEstimatedPopulationSpan.textContent = avgEstimatedN.toFixed(2);
+                avgErrorPercentageSpan.textContent = avgErrorPercentage.toFixed(2) + '%';
+                
+                // 更新狀態文字
+                simulationStatusDiv.textContent = `已完成 ${times} 次模擬，平均估算族群數量: ${avgEstimatedN.toFixed(2)}，平均誤差: ${avgErrorPercentage.toFixed(2)}%`;
+            }
+
+            // 重置模擬狀態
+            function resetSimulationState() {
+                simulationState = {
+                    step: 0,
+                    population: [],
+                    markedIndividuals: [],
+                    secondCaptured: [],
+                    recaptured: [],
+                    N: 0,
+                    M: 0,
+                    C: 0,
+                    R: 0,
+                    estimatedN: 0,
+                    errorPercentage: 0,
+                    autoPlayInterval: null
+                };
+                
+                recapturedCountSpan.textContent = '-';
+                estimatedPopulationSpan.textContent = '-';
+                actualPopulationSpan.textContent = '-';
+                errorPercentageSpan.textContent = '-';
+            }
+
+            // 標記隨機個體
+            function markRandomIndividuals(population, count) {
+                const shuffled = [...population].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, count);
+            }
+
+            // 隨機捕捉個體
+            function captureRandomIndividuals(population, count) {
+                const shuffled = [...population].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, count);
+            }
+
+            // 繪製族群
+            function drawPopulation(population) {
+                const areaWidth = animationArea.clientWidth;
+                const areaHeight = animationArea.clientHeight;
+                
+                population.forEach(index => {
+                    const organism = document.createElement('div');
+                    organism.className = 'organism';
+                    organism.id = 'organism-' + index;
+                    
+                    // 隨機位置
+                    const left = Math.random() * (areaWidth - 20);
+                    const top = Math.random() * (areaHeight - 20);
+                    
+                    organism.style.left = left + 'px';
+                    organism.style.top = top + 'px';
+                    
+                    animationArea.appendChild(organism);
+                });
+            }
+
+            // 隨機移動個體
+            function randomMoveOrganism(organism) {
+                const areaWidth = animationArea.clientWidth;
+                const areaHeight = animationArea.clientHeight;
+                
+                // 獲取當前位置
+                const currentLeft = parseFloat(organism.style.left) || 0;
+                const currentTop = parseFloat(organism.style.top) || 0;
+                
+                // 生成隨機移動距離
+                const moveX = (Math.random() - 0.5) * 60;
+                const moveY = (Math.random() - 0.5) * 60;
+                
+                // 計算新位置（確保不超出邊界）
+                let newLeft = Math.max(0, Math.min(areaWidth - 20, currentLeft + moveX));
+                let newTop = Math.max(0, Math.min(areaHeight - 20, currentTop + moveY));
+                
+                // 應用新位置
+                organism.style.left = newLeft + 'px';
+                organism.style.top = newTop + 'px';
+            }
+        });
+    </script>
+</body>
+</html>
