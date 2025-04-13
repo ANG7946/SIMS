@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>血壓模擬器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+  <div class="container">
+    <h1 class="mb-4">🫀 血壓與心輸出量模擬器</h1>
+
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label for="heartRate" class="form-label">心跳速率 (bpm)</label>
+        <input type="range" class="form-range" min="40" max="180" value="70" id="heartRate">
+        <span id="heartRateVal">70</span>
+      </div>
+      <div class="col-md-4">
+        <label for="strokeVolume" class="form-label">每搏輸出量 (mL)</label>
+        <input type="range" class="form-range" min="40" max="100" value="70" id="strokeVolume">
+        <span id="strokeVolumeVal">70</span>
+      </div>
+      <div class="col-md-4">
+        <label for="resistance" class="form-label">血管阻力 (相對值)</label>
+        <input type="range" class="form-range" min="0.5" max="2" step="0.1" value="1" id="resistance">
+        <span id="resistanceVal">1.0</span>
+      </div>
+    </div>
+
+    <hr>
+
+    <h4>模擬結果</h4>
+    <p>心輸出量（CO）：<span id="co"></span> mL/min</p>
+    <p>血壓估計值（BP）：<span id="bp"></span> 單位</p>
+
+    <div class="progress" style="height: 30px;">
+      <div id="flowBar" class="progress-bar bg-danger" role="progressbar" style="width: 50%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+  </div>
+
+  <script>
+    const heartRate = document.getElementById('heartRate');
+    const strokeVolume = document.getElementById('strokeVolume');
+    const resistance = document.getElementById('resistance');
+    const coDisplay = document.getElementById('co');
+    const bpDisplay = document.getElementById('bp');
+    const flowBar = document.getElementById('flowBar');
+
+    function updateValues() {
+      const hr = parseInt(heartRate.value);
+      const sv = parseInt(strokeVolume.value);
+      const r = parseFloat(resistance.value);
+      
+      document.getElementById('heartRateVal').textContent = hr;
+      document.getElementById('strokeVolumeVal').textContent = sv;
+      document.getElementById('resistanceVal').textContent = r.toFixed(1);
+
+      const co = hr * sv;
+      const bp = Math.round(co * r);
+
+      coDisplay.textContent = co;
+      bpDisplay.textContent = bp;
+
+      const flowPercent = Math.min(100, (co / 18000) * 100); // 視覺顯示 cap at 100%
+      flowBar.style.width = flowPercent + '%';
+      flowBar.setAttribute('aria-valuenow', flowPercent);
+    }
+
+    heartRate.addEventListener('input', updateValues);
+    strokeVolume.addEventListener('input', updateValues);
+    resistance.addEventListener('input', updateValues);
+
+    updateValues();
+  </script>
+</body>
+</html>

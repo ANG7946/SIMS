@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神經傳導模擬器</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .neuron-container {
+            background-color: #f0f0f0;
+            height: 60px;
+            border-radius: 30px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .impulse {
+            width: 20px;
+            height: 20px;
+            background-color: #ff6b6b;
+            border-radius: 50%;
+            position: absolute;
+            top: 20px;
+            transform: translateX(-50%);
+            display: none;
+            box-shadow: 0 0 10px #ff6b6b;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .action-potential-graph {
+            height: 200px;
+            margin: 20px 0;
+        }
+        .threshold-line {
+            position: absolute;
+            height: 1px;
+            background-color: red;
+            width: 100%;
+            top: 30px;
+            border-top: 1px dashed red;
+            z-index: 5;
+        }
+        .threshold-label {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: red;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">神經傳導模擬器</h1>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="stimulusStrength" class="form-label">刺激強度 (mV): <span id="stimulusValue">0</span></label>
+                    <input type="range" class="form-range" id="stimulusStrength" min="-10" max="100" value="0">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="neuronLength" class="form-label">神經元長度 (mm): <span id="lengthValue">10</span></label>
+                    <input type="range" class="form-range" id="neuronLength" min="1" max="50" value="10">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="conductionVelocity" class="form-label">傳導速度 (m/s): <span id="velocityValue">10</span></label>
+                    <input type="range" class="form-range" id="conductionVelocity" min="1" max="100" value="10">
+                </div>
+            </div>
+        </div>
+        <div class="d-grid gap-2 col-6 mx-auto">
+            <button id="stimulateBtn" class="btn btn-primary">施加刺激</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h4 class="text-center mb-3">神經元模擬</h4>
+        <div class="neuron-container" id="neuronVisual">
+            <div class="threshold-line"></div>
+            <div class="threshold-label">閾值 (15mV)</div>
+            <div class="impulse" id="impulse"></div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div id="statusBox" class="status-box bg-secondary text-white">
+                    等待刺激...
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div id="timeBox" class="status-box bg-info text-white">
+                    傳導時間: 0 ms
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h4 class="text-center mb-3">動作電位波形</h4>
+        <div class="action-potential-graph">
+            <canvas id="apChart"></canvas>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>此模擬器僅用於教育目的 | 高中生物神經傳導教學</p>
+    </div>
+
+    <script>
+        // 常數設定
+        const THRESHOLD = 15; // 動作電位閾值 (mV)
+        const RESTING_POTENTIAL = -70; // 靜止電位 (mV)
+        const PEAK_POTENTIAL = 30; // 動作電位峰值 (mV)
+        
+        // 取得DOM元素
+        const stimulusStrengthSlider = document.getElementById('stimulusStrength');
+        const neuronLengthSlider = document.getElementById('neuronLength');
+        const conductionVelocitySlider = document.getElementById('conductionVelocity');
+        const stimulateBtn = document.getElementById('stimulateBtn');
+        const impulse = document.getElementById('impulse');
+        const statusBox = document.getElementById('statusBox');
+        const timeBox = document.getElementById('timeBox');
+        const stimulusValue = document.getElementById('stimulusValue');
+        const lengthValue = document.getElementById('lengthValue');
+        const velocityValue = document.getElementById('velocityValue');
+        const neuronVisual = document.getElementById('neuronVisual');
+        
+        // 更新滑桿值顯示
+        stimulusStrengthSlider.oninput = function() {
+            stimulusValue.textContent = this.value;
+        };
+        
+        neuronLengthSlider.oninput = function() {
+            lengthValue.textContent = this.value;
+        };
+        
+        conductionVelocitySlider.oninput = function() {
+            velocityValue.textContent = this.value;
+        };
+        
+        // 設定Chart.js
+        const ctx = document.getElementById('apChart').getContext('2d');
+        const apChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 100}, (_, i) => i),
+                datasets: [{
+                    label: '膜電位 (mV)',
+                    data: Array(100).fill(RESTING_POTENTIAL),
+                    borderColor: '#3498db',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 300 // 添加短動畫以使波形變化更平滑
+                },
+                scales: {
+                    y: {
+                        min: -80,
+                        max: 40,
+                        grid: {
+                            color: function(context) {
+                                if (context.tick.value === THRESHOLD) {
+                                    return 'rgba(255, 0, 0, 0.5)';
+                                }
+                                if (context.tick.value === 0) {
+                                    return 'rgba(0, 0, 0, 0.1)';
+                                }
+                                return 'rgba(0, 0, 0, 0.05)';
+                            },
+                            lineWidth: function(context) {
+                                if (context.tick.value === THRESHOLD) {
+                                    return 2;
+                                }
+                                return 1;
+                            },
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + ' mV';
+                            }
+                        }
+                    },
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '時間 (ms)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    },
+                    annotation: {
+                        annotations: {
+                            thresholdLine: {
+                                type: 'line',
+                                yMin: THRESHOLD,
+                                yMax: THRESHOLD,
+                                borderColor: 'red',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                label: {
+                                    content: '閾值',
+                                    enabled: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // 重設圖表到靜止狀態
+        function resetChart() {
+            apChart.data.datasets[0].data = Array(100).fill(RESTING_POTENTIAL);
+            apChart.update();
+        }
+        
+        // 產生動作電位波形
+        function generateActionPotential() {
+            const data = Array(100).fill(RESTING_POTENTIAL);
+            const stimulusStrength = parseFloat(stimulusStrengthSlider.value);
+            const conductionVelocity = parseFloat(conductionVelocitySlider.value);
+            
+            // 動作電位變化 - 根據刺激強度和傳導速度進行調整
+            // 刺激強度影響振幅，傳導速度影響持續時間
+            
+            // 振幅調整因子 (刺激強度越大，振幅越大，但有上限)
+            const amplitudeFactor = Math.min(1.0 + (stimulusStrength - THRESHOLD) / 100, 1.5);
+            
+            // 時間調整因子 (速度越快，動作電位持續時間越短)
+            const timeFactor = Math.max(0.5, 1.0 - (conductionVelocity - 10) / 100);
+            
+            // 動態計算各階段的開始和結束點
+            const depolarizationStart = 20;
+            const depolarizationEnd = depolarizationStart + Math.round(10 * timeFactor);
+            const peakStart = depolarizationEnd;
+            const peakEnd = peakStart + Math.round(5 * timeFactor);
+            const repolarizationStart = peakEnd;
+            const repolarizationEnd = repolarizationStart + Math.round(15 * timeFactor);
+            const hyperpolarizationStart = repolarizationEnd;
+            const hyperpolarizationEnd = hyperpolarizationStart + Math.round(5 * timeFactor);
+            const recoveryStart = hyperpolarizationEnd;
+            const recoveryEnd = recoveryStart + Math.round(10 * timeFactor);
+            
+            // 動態計算峰值
+            const adjustedPeak = PEAK_POTENTIAL * amplitudeFactor;
+            
+            // 去極化
+            for (let i = depolarizationStart; i < depolarizationEnd; i++) {
+                const progress = (i - depolarizationStart) / (depolarizationEnd - depolarizationStart);
+                data[i] = RESTING_POTENTIAL + (adjustedPeak - RESTING_POTENTIAL) * progress;
+            }
+            
+            // 峰值
+            for (let i = peakStart; i < peakEnd; i++) {
+                data[i] = adjustedPeak;
+            }
+            
+            // 再極化
+            for (let i = repolarizationStart; i < repolarizationEnd; i++) {
+                const progress = (i - repolarizationStart) / (repolarizationEnd - repolarizationStart);
+                data[i] = adjustedPeak - (adjustedPeak - RESTING_POTENTIAL - 5) * progress;
+            }
+            
+            // 超極化 (刺激越強，超極化越明顯)
+            const hyperpolarizationDepth = 5 + (stimulusStrength / 100) * 5;
+            for (let i = hyperpolarizationStart; i < hyperpolarizationEnd; i++) {
+                data[i] = RESTING_POTENTIAL - hyperpolarizationDepth;
+            }
+            
+            // 恢復
+            for (let i = recoveryStart; i < recoveryEnd; i++) {
+                const progress = (i - recoveryStart) / (recoveryEnd - recoveryStart);
+                data[i] = (RESTING_POTENTIAL - hyperpolarizationDepth) + hyperpolarizationDepth * progress;
+            }
+            
+            apChart.data.datasets[0].data = data;
+            apChart.update();
+        }
+        
+        // 主要功能：施加刺激
+        stimulateBtn.addEventListener('click', function() {
+            // 取得當前設定值
+            const stimulusStrength = parseFloat(stimulusStrengthSlider.value);
+            const neuronLength = parseFloat(neuronLengthSlider.value);
+            const conductionVelocity = parseFloat(conductionVelocitySlider.value);
+            
+            // 計算傳導時間（毫秒）
+            // 長度從mm轉換為m，速度為m/s，結果要乘以1000轉為ms
+            const conductionTime = (neuronLength / 1000) / conductionVelocity * 1000;
+            
+            // 設定按鈕暫時不可用，避免使用者點擊太快
+            stimulateBtn.disabled = true;
+            setTimeout(() => {
+                stimulateBtn.disabled = false;
+            }, conductionTime + 500);
+            
+            // 重置顯示
+            resetChart();
+            impulse.style.display = 'none';
+            
+            // 判斷是否超過閾值
+            if (stimulusStrength >= THRESHOLD) {
+                // 超過閾值，產生動作電位
+                statusBox.textContent = '產生動作電位！';
+                statusBox.className = 'status-box bg-success text-white';
+                timeBox.textContent = `傳導時間: ${conductionTime.toFixed(2)} ms`;
+                
+                // 顯示神經衝動動畫
+                impulse.style.display = 'block';
+                impulse.style.left = '0';
+                
+                // 動畫：神經衝動傳導 - 使用實際計算的時間
+                setTimeout(() => {
+                    impulse.style.transition = `left ${conductionTime}ms linear`;
+                    impulse.style.left = '100%';
+                    
+                    // 產生動作電位波形
+                    generateActionPotential();
+                }, 100);
+            } else {
+                // 未超過閾值，不產生動作電位
+                statusBox.textContent = '未產生動作電位（未達閾值）';
+                statusBox.className = 'status-box bg-danger text-white';
+                timeBox.textContent = '傳導時間: 0 ms';
+                
+                // 顯示局部電位波形（小幅度變化但無動作電位）
+                const data = Array(100).fill(RESTING_POTENTIAL);
+                
+                // 局部電位變化（小幅波動）- 根據刺激強度動態調整
+                const localPotentialMax = THRESHOLD - 2; // 最高到閾值下方一點
+                const stimulusRatio = stimulusStrength / THRESHOLD; // 與閾值的比例
+                const localPotentialChange = stimulusRatio * (localPotentialMax - RESTING_POTENTIAL);
+                
+                // 時間調整因子 - 速度越快，局部電位變化越短
+                const localTimeFactor = Math.max(0.5, 1.0 - (conductionVelocity - 10) / 100);
+                const localDuration = Math.round(20 * localTimeFactor);
+                
+                for (let i = 20; i < 20 + localDuration; i++) {
+                    // 使用鐘形曲線使變化更平滑
+                    const bellCurve = Math.sin((i - 20) * Math.PI / localDuration);
+                    data[i] = RESTING_POTENTIAL + localPotentialChange * bellCurve;
+                }
+                
+                apChart.data.datasets[0].data = data;
+                apChart.update();
+            }
+        });
+        
+        // 初始化
+        resetChart();
+    </script>
+</body>
+</html>
